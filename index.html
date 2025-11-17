@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ninja Survival</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <!-- HUD 영역 -->
+        <div class="hud">
+            <div class="hud-left">
+                <div class="stat">
+                    <div class="stat-label">레벨</div>
+                    <div class="stat-value" id="level">1</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">생존 시간</div>
+                    <div class="stat-value" id="survival-time">00:00</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">처치 수</div>
+                    <div class="stat-value" id="kills">0</div>
+                </div>
+            </div>
+            <div class="hud-center">
+                <div class="health-bar-container">
+                    <div class="bar-label">체력</div>
+                    <div class="bar">
+                        <div class="bar-fill health-fill" id="health-bar"></div>
+                    </div>
+                </div>
+                <div class="exp-bar-container">
+                    <div class="bar-label">경험치</div>
+                    <div class="bar">
+                        <div class="bar-fill exp-fill" id="exp-bar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 게임 Canvas -->
+        <canvas id="gameCanvas" tabindex="0"></canvas>
+
+        <!-- 시작 화면 -->
+        <div class="screen start-screen" id="start-screen">
+            <div class="screen-content">
+                <h1>Ninja Survival</h1>
+                <h2>2D 자동 슈터</h2>
+                <div class="instructions">
+                    <p><strong>조작법:</strong></p>
+                    <p>방향키 또는 WASD로 이동</p>
+                    <p>적을 처치하고 경험치를 모아 레벨업하세요!</p>
+                </div>
+                <button class="btn-start" id="btn-start">게임 시작</button>
+            </div>
+        </div>
+
+        <!-- 레벨업 선택 화면 -->
+        <div class="screen levelup-screen" id="levelup-screen" style="display: none;">
+            <div class="screen-content">
+                <h2>레벨업!</h2>
+                <p>파워업을 선택하세요</p>
+                <div class="powerup-options" id="powerup-options">
+                    <!-- 동적으로 생성됨 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 게임 오버 화면 -->
+        <div class="screen gameover-screen" id="gameover-screen" style="display: none;">
+            <div class="screen-content">
+                <h2>게임 오버</h2>
+                <div class="gameover-stats">
+                    <p>생존 시간: <span id="final-time">00:00</span></p>
+                    <p>최종 레벨: <span id="final-level">1</span></p>
+                    <p>처치 수: <span id="final-kills">0</span></p>
+                </div>
+                <button class="btn-restart" id="btn-restart">다시 시작</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 스크립트 로드 순서 중요! -->
+    <script src="js/config.js"></script>
+    <script src="js/Player.js"></script>
+    <script src="js/Enemy.js"></script>
+    <script src="js/Projectile.js"></script>
+    <script src="js/ExperienceOrb.js"></script>
+    <script src="js/Shuriken.js"></script>
+    <script src="js/powerups.js"></script>
+    <script src="js/Game.js"></script>
+</body>
+</html>
+

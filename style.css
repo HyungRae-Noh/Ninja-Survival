@@ -1,0 +1,279 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: #fff;
+    overflow: hidden;
+    height: 100vh;
+}
+
+.game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Canvas 스타일링 */
+#gameCanvas {
+    display: block;
+    background: #0f0f1e;
+    border: 2px solid #2a2a3e;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+/* HUD 스타일링 */
+.hud {
+    position: absolute;
+    top: 20px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 30px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.hud-left {
+    display: flex;
+    gap: 30px;
+}
+
+.stat {
+    background: rgba(0, 0, 0, 0.6);
+    padding: 10px 15px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    font-size: 20px;
+    font-weight: bold;
+    color: #fff;
+}
+
+.hud-center {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 300px;
+}
+
+.bar-container {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.bar-label {
+    font-size: 12px;
+    color: #aaa;
+}
+
+.bar {
+    width: 100%;
+    height: 25px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    overflow: hidden;
+    position: relative;
+}
+
+.bar-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+    border-radius: 3px;
+}
+
+.health-fill {
+    background: linear-gradient(90deg, #ff4444 0%, #ff6666 100%);
+    box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+}
+
+.exp-fill {
+    background: linear-gradient(90deg, #44ff44 0%, #66ff66 100%);
+    box-shadow: 0 0 10px rgba(68, 255, 68, 0.5);
+}
+
+/* 화면 오버레이 (시작, 레벨업, 게임오버) */
+.screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.screen-content {
+    text-align: center;
+    padding: 40px;
+    background: rgba(26, 26, 46, 0.95);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 15px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+    max-width: 600px;
+}
+
+.screen-content h1 {
+    font-size: 48px;
+    margin-bottom: 10px;
+    color: #ff4444;
+    text-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+}
+
+.screen-content h2 {
+    font-size: 36px;
+    margin-bottom: 20px;
+    color: #44ff44;
+    text-shadow: 0 0 20px rgba(68, 255, 68, 0.5);
+}
+
+.instructions {
+    margin: 30px 0;
+    text-align: left;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 20px;
+    border-radius: 10px;
+}
+
+.instructions p {
+    margin: 10px 0;
+    line-height: 1.6;
+}
+
+/* 버튼 스타일 */
+button {
+    padding: 15px 40px;
+    font-size: 20px;
+    font-weight: bold;
+    color: #fff;
+    background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 20px;
+}
+
+button:hover {
+    background: linear-gradient(135deg, #ff6666 0%, #ff0000 100%);
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+}
+
+button:active {
+    transform: scale(0.95);
+}
+
+/* 레벨업 화면 */
+.powerup-options {
+    display: flex;
+    gap: 20px;
+    margin-top: 30px;
+    justify-content: center;
+}
+
+.powerup-card {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 150px;
+}
+
+.powerup-card:hover {
+    border-color: #44ff44;
+    background: rgba(68, 255, 68, 0.1);
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(68, 255, 68, 0.3);
+}
+
+.powerup-card.selected {
+    border-color: #44ff44;
+    background: rgba(68, 255, 68, 0.2);
+    box-shadow: 0 0 30px rgba(68, 255, 68, 0.5);
+}
+
+.powerup-icon {
+    font-size: 48px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.powerup-name {
+    font-size: 18px;
+    font-weight: bold;
+    color: #44ff44;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.powerup-description {
+    font-size: 14px;
+    color: #ccc;
+    line-height: 1.4;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.powerup-level {
+    font-size: 12px;
+    color: #ffaa00;
+    font-weight: bold;
+    text-align: center;
+    margin: 5px 0;
+    padding: 3px 8px;
+    background: rgba(255, 170, 0, 0.2);
+    border: 1px solid rgba(255, 170, 0, 0.5);
+    border-radius: 5px;
+    display: inline-block;
+}
+
+.powerup-key {
+    font-size: 12px;
+    color: #aaa;
+    text-align: center;
+    margin-top: 10px;
+    padding: 5px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 5px;
+}
+
+/* 게임 오버 화면 */
+.gameover-stats {
+    margin: 30px 0;
+    font-size: 20px;
+}
+
+.gameover-stats p {
+    margin: 15px 0;
+}
+
+.gameover-stats span {
+    color: #44ff44;
+    font-weight: bold;
+}
+
