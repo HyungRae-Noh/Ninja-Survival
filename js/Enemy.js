@@ -10,15 +10,15 @@ class Enemy {
             case 'fast':
                 this.radius = CONFIG.ENEMY_BASE_RADIUS * 0.8; // 작은 크기
                 this.speed = CONFIG.ENEMY_BASE_SPEED * 1.5; // 빠른 속도
-                this.maxHealth = customHealth || Math.floor(CONFIG.ENEMY_BASE_HEALTH * 0.7); // 낮은 체력
+                this.maxHealth = customHealth || Math.floor(CONFIG.ENEMY_BASE_HEALTH * 0.5); // 낮은 체력
                 this.color = '#ffaa00'; // 주황색
                 this.expValue = CONFIG.EXP_BASE_VALUE; // 경험치 비율은 normal과 동일
                 this.orbDropCount = 3; // 오브 3개 드랍
                 break;
             case 'strong':
-                this.radius = CONFIG.ENEMY_BASE_RADIUS * 1.3; // 큰 크기
+                this.radius = CONFIG.ENEMY_BASE_RADIUS * 1.2; // 큰 크기
                 this.speed = CONFIG.ENEMY_BASE_SPEED * 0.7; // 느린 속도
-                this.maxHealth = customHealth || Math.floor(CONFIG.ENEMY_BASE_HEALTH * 2.5); // 높은 체력
+                this.maxHealth = customHealth || Math.floor(CONFIG.ENEMY_BASE_HEALTH * 4); // 높은 체력
                 this.color = '#8b0000'; // 진한 빨간색
                 this.expValue = CONFIG.EXP_BASE_VALUE; // 경험치 비율은 normal과 동일
                 this.orbDropCount = 10; // 오브 10개 드랍
@@ -84,6 +84,14 @@ class Enemy {
         this.poisonDamageAccumulator = 0; // 중독 데미지 누적기 (밀리초)
         this.poisonDamageInterval = 1000; // 중독 데미지 간격 (1초)
         this.poisonBaseDuration = 3000; // 기본 중독 지속 시간 (3초)
+        
+        // 이동속도 감소 상태
+        this.slowTimer = 0;            // 이동속도 감소 지속 시간 (밀리초)
+        this.slowAmount = 0;           // 이동속도 감소량 (0.0 ~ 1.0)
+        
+        // 얼어붙음 상태
+        this.frozen = false;           // 얼어붙음 상태 여부
+        this.frozenTimer = 0;          // 얼어붙음 지속 시간 (밀리초)
     }
 
     update(playerX, playerY, deltaTime = 0) {
@@ -129,6 +137,24 @@ class Enemy {
             }
         }
         
+        // 이동속도 감소 상태 업데이트
+        if (this.slowTimer > 0) {
+            this.slowTimer -= deltaTime;
+            if (this.slowTimer <= 0) {
+                this.slowTimer = 0;
+                this.slowAmount = 0;
+            }
+        }
+        
+        // 얼어붙음 상태 업데이트
+        if (this.frozen) {
+            this.frozenTimer -= deltaTime;
+            if (this.frozenTimer <= 0) {
+                this.frozen = false;
+                this.frozenTimer = 0;
+            }
+        }
+        
         // 플레이어를 향한 방향 벡터 계산
         const dx = playerX - this.x;
         const dy = playerY - this.y;
@@ -150,8 +176,13 @@ class Enemy {
                 this.direction = dx < 0 ? 2 : 3; // 왼쪽: 2, 오른쪽: 3
             }
             
-            // 속도 적용 (화상 시 이동속도 감소)
-            const currentSpeed = this.burned ? this.speed * (1 - this.burnSpeedDebuff) : this.speed;
+            // 속도 적용 (화상, 이동속도 감소, 얼어붙음 적용)
+            let speedMultiplier = 1.0;
+            if (this.burned) speedMultiplier *= (1 - this.burnSpeedDebuff);
+            if (this.slowTimer > 0 && this.slowAmount > 0) speedMultiplier *= (1 - this.slowAmount);
+            if (this.frozen) speedMultiplier = 0; // 얼어붙으면 이동 불가
+            
+            const currentSpeed = this.speed * speedMultiplier;
             this.x += normalizedX * currentSpeed;
             this.y += normalizedY * currentSpeed;
             
@@ -187,6 +218,15 @@ class Enemy {
                 ctx.arc(this.x + (i - (this.poisonStacks - 1) / 2) * 4, this.y - this.radius - 8, 2, 0, Math.PI * 2);
                 ctx.fill();
             }
+        }
+        
+        // 얼어붙음 효과 (파란색 테두리)
+        if (this.frozen) {
+            ctx.strokeStyle = 'rgba(100, 200, 255, 0.8)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius + 2, 0, Math.PI * 2);
+            ctx.stroke();
         }
         
         // 스프라이트 이미지가 로드되었으면 스프라이트 그리기

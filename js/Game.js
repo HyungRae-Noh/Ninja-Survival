@@ -64,6 +64,27 @@ class Game {
         // 수리검 호위 배열
         this.shurikens = []; // 수리검 배열
 
+        // 분신술 관련
+        this.shadowClones = []; // 분신 배열
+        this.shadowCloneTimer = 0; // 분신 리젠 타이머
+
+        // 천둥의 심판 관련
+        this.thunderTimer = 0; // 천둥 타이머
+        this.thunderEffects = []; // 천둥 효과 배열
+
+        // 바다의 포효 관련
+        this.waveTimer = 0; // 파도 발사 타이머
+        this.waves = []; // 파도 투사체 배열
+        this.waveSpeedBoostTimer = 0; // 이동속도 증가 타이머
+
+        // 기폭찰 관련
+        this.explosiveTagTimer = 0; // 기폭찰 발사 타이머
+        this.explosiveTags = []; // 기폭찰 배열
+        this.explosiveExplosions = []; // 기폭찰 폭발 효과 배열
+
+        // 호카게의 가호 관련
+        this.hokageTimer = 0; // 호카게의 가호 넉백 타이머
+
         // 배경 이미지
         this.backgroundImage = new Image();
         this.backgroundImage.src = 'img/background.png';
@@ -205,6 +226,27 @@ class Game {
         // 수리검 호위 초기화
         this.shurikens = [];
         
+        // 분신술 초기화
+        this.shadowClones = [];
+        this.shadowCloneTimer = 0;
+        
+        // 천둥의 심판 초기화
+        this.thunderTimer = 0;
+        this.thunderEffects = [];
+        
+        // 바다의 포효 초기화
+        this.waveTimer = 0;
+        this.waves = [];
+        this.waveSpeedBoostTimer = 0;
+        
+        // 기폭찰 초기화
+        this.explosiveTagTimer = 0;
+        this.explosiveTags = [];
+        this.explosiveExplosions = [];
+        
+        // 호카게의 가호 초기화
+        this.hokageTimer = 0;
+        
         // 처치 수 초기화
         this.kills = 0;
         
@@ -265,6 +307,43 @@ class Game {
         
         // 수리검 호위 업데이트
         this.updateShurikens(deltaTime);
+        
+        // 분신술 업데이트
+        this.updateShadowClones(deltaTime);
+        
+        // 천둥의 심판 업데이트
+        this.updateThunder(deltaTime);
+        
+        // 바다의 포효 업데이트
+        this.updateWaves(deltaTime);
+        
+        // 기폭찰 업데이트
+        this.updateExplosiveTags(deltaTime);
+        
+        // 호카게의 가호 업데이트
+        this.updateHokageBlessing(deltaTime);
+        
+        // 천둥 효과 업데이트
+        if (this.thunderEffects) {
+            for (let i = this.thunderEffects.length - 1; i >= 0; i--) {
+                const effect = this.thunderEffects[i];
+                effect.duration -= deltaTime;
+                if (effect.duration <= 0) {
+                    this.thunderEffects.splice(i, 1);
+                }
+            }
+        }
+        
+        // 조류 가속 효과 적용
+        if (this.waveSpeedBoostTimer > 0) {
+            this.waveSpeedBoostTimer -= deltaTime;
+            if (this.waveSpeedBoostTimer <= 0) {
+                this.waveSpeedBoostTimer = 0;
+                this.player.waveSpeedBoostActive = false;
+            }
+        } else {
+            this.player.waveSpeedBoostActive = false;
+        }
         
         // 투사체 업데이트
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
@@ -847,6 +926,487 @@ class Game {
         }
     }
 
+    // 분신술 업데이트
+    updateShadowClones(deltaTime) {
+        if (!this.player.stats.shadowCloneActive) {
+            this.shadowClones = [];
+            return;
+        }
+
+        const maxClones = this.player.stats.shadowCloneCount || 1;
+        const cooldown = this.player.stats.shadowCloneCooldown || 5000;
+
+        // 분신 리젠 타이머 업데이트
+        this.shadowCloneTimer += deltaTime;
+        if (this.shadowCloneTimer >= cooldown && this.shadowClones.length < maxClones) {
+            // 새로운 분신 생성
+            this.shadowClones.push({
+                x: this.player.x,
+                y: this.player.y,
+                targetX: this.player.x,
+                targetY: this.player.y,
+                speed: 2, // 느린 속도
+                alpha: 0.5, // 투명
+                damage: 15,
+                radius: 20,
+                pullRange: this.player.stats.shadowClonePullRange || 0,
+                exploded: false
+            });
+            this.shadowCloneTimer = 0;
+        }
+
+        // 분신 업데이트
+        for (let i = this.shadowClones.length - 1; i >= 0; i--) {
+            const clone = this.shadowClones[i];
+            
+            if (clone.exploded) {
+                this.shadowClones.splice(i, 1);
+                continue;
+            }
+
+            // 가장 가까운 적 찾기
+            let closestEnemy = null;
+            let closestDistance = Infinity;
+            
+            for (const enemy of this.enemies) {
+                const dx = enemy.x - clone.x;
+                const dy = enemy.y - clone.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestEnemy = enemy;
+                }
+            }
+
+            if (closestEnemy) {
+                // 적을 향해 이동
+                const dx = closestEnemy.x - clone.x;
+                const dy = closestEnemy.y - clone.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance > 0) {
+                    clone.x += (dx / distance) * clone.speed;
+                    clone.y += (dy / distance) * clone.speed;
+                }
+
+                // 적과 충돌 체크 (자폭)
+                if (distance < (clone.radius + closestEnemy.radius)) {
+                    // 데미지 적용
+                    closestEnemy.health -= clone.damage;
+                    
+                    // 끌어당기기 효과
+                    if (clone.pullRange > 0) {
+                        for (const enemy of this.enemies) {
+                            const edx = enemy.x - clone.x;
+                            const edy = enemy.y - clone.y;
+                            const edist = Math.sqrt(edx * edx + edy * edy);
+                            
+                            if (edist <= clone.pullRange && enemy !== closestEnemy) {
+                                const pullStrength = 0.3;
+                                enemy.x += (edx / edist) * pullStrength;
+                                enemy.y += (edy / edist) * pullStrength;
+                            }
+                        }
+                    }
+
+                    // 적 사망 체크
+                    if (closestEnemy.health <= 0) {
+                        this.createExperienceOrbs(closestEnemy.x, closestEnemy.y, closestEnemy.orbDropCount, closestEnemy.expValue);
+                        this.kills++;
+                        const index = this.enemies.indexOf(closestEnemy);
+                        if (index > -1) this.enemies.splice(index, 1);
+                    }
+
+                    clone.exploded = true;
+                }
+            } else {
+                // 적이 없으면 플레이어 위치로 이동
+                const dx = this.player.x - clone.x;
+                const dy = this.player.y - clone.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance > 0) {
+                    clone.x += (dx / distance) * clone.speed;
+                    clone.y += (dy / distance) * clone.speed;
+                }
+            }
+        }
+    }
+
+    // 천둥의 심판 업데이트
+    updateThunder(deltaTime) {
+        if (!this.player.stats.thunderActive) return;
+
+        this.thunderTimer += deltaTime;
+        const cooldown = this.player.stats.thunderCooldown || 3000;
+
+        if (this.thunderTimer >= cooldown) {
+            // 플레이어 주변 랜덤 위치에 번개 떨어뜨리기
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 100 + Math.random() * 200; // 100~300px 거리
+            const thunderX = this.player.x + Math.cos(angle) * distance;
+            const thunderY = this.player.y + Math.sin(angle) * distance;
+
+            // 번개 효과 생성
+            this.strikeThunder(thunderX, thunderY);
+            this.thunderTimer = 0;
+        }
+    }
+
+    // 번개 떨어뜨리기
+    strikeThunder(x, y) {
+        const damage = this.player.stats.thunderDamage || 10;
+        const radius = this.player.stats.thunderRadius || 60;
+        const critChance = this.player.stats.thunderCritChance || 0.05;
+        const isCrit = Math.random() < critChance;
+        const finalDamage = isCrit ? damage * 2 : damage; // 치명타 시 2배
+
+        // 번개 효과 (시각적)
+        this.thunderEffects = this.thunderEffects || [];
+        this.thunderEffects.push({
+            x: x,
+            y: y,
+            radius: 0,
+            maxRadius: radius,
+            alpha: 1.0,
+            duration: 300,
+            maxDuration: 300
+        });
+
+        // 범위 내 적에게 데미지
+        for (let i = this.enemies.length - 1; i >= 0; i--) {
+            const enemy = this.enemies[i];
+            const dx = enemy.x - x;
+            const dy = enemy.y - y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < radius + enemy.radius) {
+                enemy.health -= finalDamage;
+
+                // 이동속도 감소
+                if (this.player.stats.thunderSlowEnabled) {
+                    enemy.slowTimer = 1000; // 1초간 감소
+                    enemy.slowAmount = 0.5; // 50% 감소
+                }
+
+                // 연쇄 전도
+                if (this.player.stats.thunderChainChance > 0 && Math.random() < this.player.stats.thunderChainChance) {
+                    // 가까운 다른 적 찾기
+                    let chainTarget = null;
+                    let chainDistance = Infinity;
+                    
+                    for (const otherEnemy of this.enemies) {
+                        if (otherEnemy === enemy) continue;
+                        const cdx = otherEnemy.x - enemy.x;
+                        const cdy = otherEnemy.y - enemy.y;
+                        const cdist = Math.sqrt(cdx * cdx + cdy * cdy);
+                        
+                        if (cdist < chainDistance && cdist < 150) {
+                            chainDistance = cdist;
+                            chainTarget = otherEnemy;
+                        }
+                    }
+
+                    if (chainTarget) {
+                        chainTarget.health -= finalDamage * 0.5; // 50% 데미지
+                    }
+                }
+
+                // 적 사망 체크
+                if (enemy.health <= 0) {
+                    // 경험치 오브 드랍 (과부하 충전)
+                    if (this.player.stats.thunderExpDropEnabled && Math.random() < 0.3) {
+                        const orbCount = 1 + Math.floor(Math.random() * 3); // 1~3개
+                        this.createExperienceOrbs(enemy.x, enemy.y, orbCount, 5);
+                    } else {
+                        this.createExperienceOrbs(enemy.x, enemy.y, enemy.orbDropCount, enemy.expValue);
+                    }
+                    this.kills++;
+                    this.enemies.splice(i, 1);
+                }
+            }
+        }
+    }
+
+    // 바다의 포효 업데이트
+    updateWaves(deltaTime) {
+        if (!this.player.stats.waveActive) {
+            this.waves = [];
+            return;
+        }
+
+        this.waveTimer += deltaTime;
+        const cooldown = this.player.stats.waveCooldown || 2000;
+
+        if (this.waveTimer >= cooldown) {
+            // 플레이어가 바라보는 방향으로 파도 발사
+            const direction = this.player.lastDirection; // 0: 아래, 1: 위, 2: 왼쪽, 3: 오른쪽
+            let dirX = 0, dirY = 0;
+            
+            switch(direction) {
+                case 0: dirY = 1; break; // 아래
+                case 1: dirY = -1; break; // 위
+                case 2: dirX = -1; break; // 왼쪽
+                case 3: dirX = 1; break; // 오른쪽
+            }
+
+            this.waves.push({
+                x: this.player.x,
+                y: this.player.y,
+                dirX: dirX,
+                dirY: dirY,
+                speed: 6,
+                range: this.player.stats.waveRange || 500,
+                width: this.player.stats.waveWidth || 80,
+                damage: this.player.stats.waveDamage || 15,
+                distanceTraveled: 0,
+                penetratedEnemies: []
+            });
+
+            this.waveTimer = 0;
+        }
+
+        // 파도 업데이트
+        for (let i = this.waves.length - 1; i >= 0; i--) {
+            const wave = this.waves[i];
+            
+            wave.x += wave.dirX * wave.speed;
+            wave.y += wave.dirY * wave.speed;
+            wave.distanceTraveled += wave.speed;
+
+            // 사거리 초과 체크
+            if (wave.distanceTraveled >= wave.range) {
+                this.waves.splice(i, 1);
+                continue;
+            }
+
+            // 적과 충돌 체크
+            let hitCount = 0;
+            for (let j = this.enemies.length - 1; j >= 0; j--) {
+                const enemy = this.enemies[j];
+                
+                if (wave.penetratedEnemies.includes(enemy)) continue;
+
+                const dx = enemy.x - wave.x;
+                const dy = enemy.y - wave.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                // 파도 폭 내에 있는지 체크
+                if (distance < wave.width / 2 + enemy.radius) {
+                    enemy.health -= wave.damage;
+                    wave.penetratedEnemies.push(enemy);
+                    hitCount++;
+
+                    // 이동속도 감소 및 얼어붙음
+                    if (this.player.stats.waveSlowAmount > 0) {
+                        enemy.slowTimer = 2000; // 2초간
+                        enemy.slowAmount = this.player.stats.waveSlowAmount;
+                        
+                        if (this.player.stats.waveFreezeChance > 0 && Math.random() < this.player.stats.waveFreezeChance) {
+                            enemy.frozen = true;
+                            enemy.frozenTimer = 1000; // 1초간
+                        }
+                    }
+
+                    // 조류 가속 (3기 이상 명중 시)
+                    if (hitCount >= 3 && this.player.stats.waveSpeedBoostEnabled) {
+                        this.waveSpeedBoostTimer = this.player.stats.waveSpeedBoostDuration || 2000;
+                        this.player.waveSpeedBoostActive = true;
+                        this.player.waveSpeedBoostAmount = this.player.stats.waveSpeedBoostAmount || 0.05;
+                    }
+
+                    // 적 사망 체크
+                    if (enemy.health <= 0) {
+                        this.createExperienceOrbs(enemy.x, enemy.y, enemy.orbDropCount, enemy.expValue);
+                        this.kills++;
+                        this.enemies.splice(j, 1);
+                    }
+                }
+            }
+        }
+    }
+
+    // 기폭찰 업데이트
+    updateExplosiveTags(deltaTime) {
+        if (!this.player.stats.explosiveTagActive) {
+            this.explosiveTags = [];
+            return;
+        }
+
+        this.explosiveTagTimer += deltaTime;
+        const cooldown = this.player.stats.explosiveTagCooldown || 10000;
+
+        if (this.explosiveTagTimer >= cooldown) {
+            // 가장 가까운 적 방향으로 기폭찰 발사
+            let targetX = this.player.x + 100;
+            let targetY = this.player.y;
+            
+            let closestEnemy = null;
+            let closestDistance = Infinity;
+            
+            for (const enemy of this.enemies) {
+                const dx = enemy.x - this.player.x;
+                const dy = enemy.y - this.player.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestEnemy = enemy;
+                }
+            }
+
+            if (closestEnemy) {
+                targetX = closestEnemy.x;
+                targetY = closestEnemy.y;
+            }
+
+            const dx = targetX - this.player.x;
+            const dy = targetY - this.player.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const dirX = distance > 0 ? dx / distance : 0;
+            const dirY = distance > 0 ? dy / distance : 0;
+
+            this.explosiveTags.push({
+                x: this.player.x,
+                y: this.player.y,
+                dirX: dirX,
+                dirY: dirY,
+                speed: 5,
+                damage: this.player.stats.explosiveTagDamage || 20,
+                radius: this.player.stats.explosiveTagRadius || 40,
+                distanceTraveled: 0,
+                maxDistance: 400
+            });
+
+            // 후방 발사 (이중 발사 증강)
+            if (this.player.stats.explosiveTagBackward) {
+                this.explosiveTags.push({
+                    x: this.player.x,
+                    y: this.player.y,
+                    dirX: -dirX,
+                    dirY: -dirY,
+                    speed: 5,
+                    damage: this.player.stats.explosiveTagDamage || 20,
+                    radius: this.player.stats.explosiveTagRadius || 40,
+                    distanceTraveled: 0,
+                    maxDistance: 400
+                });
+            }
+
+            this.explosiveTagTimer = 0;
+        }
+
+        // 기폭찰 업데이트
+        for (let i = this.explosiveTags.length - 1; i >= 0; i--) {
+            const tag = this.explosiveTags[i];
+            
+            tag.x += tag.dirX * tag.speed;
+            tag.y += tag.dirY * tag.speed;
+            tag.distanceTraveled += tag.speed;
+
+            // 사거리 초과 또는 적 충돌 시 폭발
+            let shouldExplode = tag.distanceTraveled >= tag.maxDistance;
+
+            for (const enemy of this.enemies) {
+                const dx = enemy.x - tag.x;
+                const dy = enemy.y - tag.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < tag.radius + enemy.radius) {
+                    shouldExplode = true;
+                    break;
+                }
+            }
+
+            if (shouldExplode) {
+                // 폭발 효과
+                this.explosiveExplosions.push({
+                    x: tag.x,
+                    y: tag.y,
+                    radius: 0,
+                    maxRadius: tag.radius,
+                    alpha: 1.0,
+                    duration: 400
+                });
+
+                // 범위 내 적에게 데미지
+                for (let j = this.enemies.length - 1; j >= 0; j--) {
+                    const enemy = this.enemies[j];
+                    const dx = enemy.x - tag.x;
+                    const dy = enemy.y - tag.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < tag.radius + enemy.radius) {
+                        enemy.health -= tag.damage;
+
+                        if (enemy.health <= 0) {
+                            this.createExperienceOrbs(enemy.x, enemy.y, enemy.orbDropCount, enemy.expValue);
+                            this.kills++;
+                            this.enemies.splice(j, 1);
+                        }
+                    }
+                }
+
+                this.explosiveTags.splice(i, 1);
+            }
+        }
+
+        // 폭발 효과 업데이트
+        if (this.explosiveExplosions) {
+            for (let i = this.explosiveExplosions.length - 1; i >= 0; i--) {
+                const explosion = this.explosiveExplosions[i];
+                explosion.duration -= deltaTime;
+                explosion.radius = explosion.maxRadius * (1 - explosion.duration / 400);
+                explosion.alpha = explosion.duration / 400;
+
+                if (explosion.duration <= 0) {
+                    this.explosiveExplosions.splice(i, 1);
+                }
+            }
+        }
+    }
+
+    // 호카게의 가호 업데이트
+    updateHokageBlessing(deltaTime) {
+        if (!this.player.stats.hokageActive) return;
+
+        const radius = this.player.stats.hokageRadius || 80;
+        const knockback = this.player.stats.hokageKnockback || 5;
+        const slow = this.player.stats.hokageSlow || 0.3;
+        const cooldown = 25000; // 25초 쿨타임
+
+        // 타이머 업데이트
+        this.hokageTimer += deltaTime;
+
+        // 25초마다 넉백 발동
+        if (this.hokageTimer >= cooldown) {
+            // 플레이어 주변의 적 넉백
+            for (const enemy of this.enemies) {
+                const dx = enemy.x - this.player.x;
+                const dy = enemy.y - this.player.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < radius + enemy.radius) {
+                    // 넉백
+                    if (distance > 0) {
+                        const knockbackX = (dx / distance) * knockback;
+                        const knockbackY = (dy / distance) * knockback;
+                        enemy.x += knockbackX;
+                        enemy.y += knockbackY;
+                    }
+
+                    // 이동속도 감소
+                    enemy.slowTimer = 2000; // 2초간 적용
+                    enemy.slowAmount = slow;
+                }
+            }
+
+            // 타이머 리셋
+            this.hokageTimer = 0;
+        }
+    }
+
     checkLevelUp() {
         // 경험치가 충분하면 레벨업 (한 번에 하나씩만 레벨업)
         if (this.player.exp >= this.player.expToNext && this.state === 'playing') {
@@ -879,6 +1439,12 @@ class Game {
         const hasFireAura = this.player.stats.fireAuraActive;
         const hasShuriken = this.player.stats.shurikenActive;
         const hasPoison = this.player.stats.poisonActive;
+        const hasShadowClone = this.player.stats.shadowCloneActive;
+        const hasThunder = this.player.stats.thunderActive;
+        const hasWave = this.player.stats.waveActive;
+        const hasGreed = this.player.stats.greedActive;
+        const hasExplosiveTag = this.player.stats.explosiveTagActive;
+        const hasHokage = this.player.stats.hokageActive;
         
         // 일반 파워업과 체력 회복 파워업 분리
         const allNormalPowerups = this.powerupSystem.getNormalPowerupPool();
@@ -893,6 +1459,12 @@ class Game {
             if (powerup.id === 'fire_aura' && hasFireAura) return false;
             if (powerup.id === 'shuriken_guard' && hasShuriken) return false;
             if (powerup.id === 'poison' && hasPoison) return false;
+            if (powerup.id === 'shadow_clone' && hasShadowClone) return false;
+            if (powerup.id === 'thunder_judgment' && hasThunder) return false;
+            if (powerup.id === 'wave_roar' && hasWave) return false;
+            if (powerup.id === 'greed_aura' && hasGreed) return false;
+            if (powerup.id === 'explosive_tag' && hasExplosiveTag) return false;
+            if (powerup.id === 'hokage_blessing' && hasHokage) return false;
             return true;
         });
         
@@ -906,31 +1478,69 @@ class Game {
         const allPoisonAugments = hasPoison 
             ? this.powerupSystem.getPoisonAugmentPool() 
             : [];
+        const allShadowCloneAugments = hasShadowClone
+            ? this.powerupSystem.getShadowCloneAugmentPool()
+            : [];
+        const allThunderAugments = hasThunder
+            ? this.powerupSystem.getThunderAugmentPool()
+            : [];
+        const allWaveAugments = hasWave
+            ? this.powerupSystem.getWaveAugmentPool()
+            : [];
+        const allGreedAugments = hasGreed
+            ? this.powerupSystem.getGreedAugmentPool()
+            : [];
+        const allExplosiveTagAugments = hasExplosiveTag
+            ? this.powerupSystem.getExplosiveTagAugmentPool()
+            : [];
+        const allHokageAugments = hasHokage
+            ? this.powerupSystem.getHokageAugmentPool()
+            : [];
         
-        // 레벨이 20 미만인 파워업만 필터링
+        // 최대 레벨에 도달하지 않은 파워업만 필터링
         const availableNormalPowerups = allNormalPowerups.filter(powerup => {
-            const currentLevel = this.player.powerupLevels[powerup.id] || 0;
-            return currentLevel < 20;
+            return !this.powerupSystem.isMaxLevel(powerup.id);
         });
         
         const availableHealPowerups = allHealPowerups.filter(powerup => {
-            const currentLevel = this.player.powerupLevels[powerup.id] || 0;
-            return currentLevel < 20;
+            // 체력 회복은 소모성 파워업이므로 항상 사용 가능 (확률로만 제어)
+            return true;
         });
         
         const availableFireAuraAugments = allFireAuraAugments.filter(powerup => {
-            const currentLevel = this.player.powerupLevels[powerup.id] || 0;
-            return currentLevel < 20;
+            return !this.powerupSystem.isMaxLevel(powerup.id);
         });
         
         const availableShurikenAugments = allShurikenAugments.filter(powerup => {
-            const currentLevel = this.player.powerupLevels[powerup.id] || 0;
-            return currentLevel < 20;
+            return !this.powerupSystem.isMaxLevel(powerup.id);
         });
         
         const availablePoisonAugments = allPoisonAugments.filter(powerup => {
-            const currentLevel = this.player.powerupLevels[powerup.id] || 0;
-            return currentLevel < 20;
+            return !this.powerupSystem.isMaxLevel(powerup.id);
+        });
+        
+        const availableShadowCloneAugments = allShadowCloneAugments.filter(powerup => {
+            return !this.powerupSystem.isMaxLevel(powerup.id);
+        });
+        
+        const availableThunderAugments = allThunderAugments.filter(powerup => {
+            return !this.powerupSystem.isMaxLevel(powerup.id);
+        });
+        
+        const availableWaveAugments = allWaveAugments.filter(powerup => {
+            return !this.powerupSystem.isMaxLevel(powerup.id);
+        });
+        
+        const availableGreedAugments = allGreedAugments.filter(powerup => {
+            return !this.powerupSystem.isMaxLevel(powerup.id);
+        });
+        
+        const availableExplosiveTagAugments = allExplosiveTagAugments.filter(powerup => {
+            return !this.powerupSystem.isMaxLevel(powerup.id);
+        });
+        
+        const availableHokageAugments = allHokageAugments.filter(powerup => {
+            return !this.powerupSystem.isMaxLevel(powerup.id);
         });
         
         this.levelUpOptions = [];
@@ -940,12 +1550,19 @@ class Game {
         const allAugmentPowerups = [
             ...availableFireAuraAugments,
             ...availableShurikenAugments,
-            ...availablePoisonAugments
+            ...availablePoisonAugments,
+            ...availableShadowCloneAugments,
+            ...availableThunderAugments,
+            ...availableWaveAugments,
+            ...availableGreedAugments,
+            ...availableExplosiveTagAugments,
+            ...availableHokageAugments
         ];
         
         // 3개의 파워업 선택
         const maxOptions = 3;
-        const healPowerupChance = 0.05; // 체력 회복 파워업 확률 5% (낮게 조정)
+        const healHalfChance = 0.10; // 체력 절반 회복 확률 10% (각 카드당 독립 시행)
+        const healFullChance = 0.05; // 체력 전부 회복 확률 5% (각 카드당 독립 시행)
         const augmentChance = 0.25; // 증강 파워업 확률 25%
         const specialPowerupChance = 0.25; // 특수 파워업 확률 25% (10레벨 이상)
         
@@ -962,9 +1579,21 @@ class Game {
             else if (allAugmentPowerups.length > 0 && Math.random() < augmentChance) {
                 poolToUse = allAugmentPowerups;
             }
-            // 체력 회복 파워업 확률 체크 (5% 확률)
-            else if (Math.random() < healPowerupChance && availableHealPowerups.length > 0) {
-                poolToUse = availableHealPowerups;
+            // 체력 회복 파워업 확률 체크 (각 카드당 독립 시행)
+            else if (availableHealPowerups.length > 0) {
+                const rand = Math.random();
+                // 체력 전부 회복이 더 희귀하므로 먼저 체크
+                if (rand < healFullChance) {
+                    poolToUse = availableHealPowerups.filter(p => p.id === 'heal_full');
+                } else if (rand < healFullChance + healHalfChance) {
+                    poolToUse = availableHealPowerups.filter(p => p.id === 'heal_half');
+                } else {
+                    poolToUse = availableNormalPowerups;
+                }
+                // 필터링 결과가 비어있으면 일반 파워업으로
+                if (poolToUse.length === 0) {
+                    poolToUse = availableNormalPowerups;
+                }
             } else {
                 poolToUse = availableNormalPowerups;
             }
@@ -1148,6 +1777,110 @@ class Game {
             // 수리검 호위 렌더링
             for (const shuriken of this.shurikens) {
                 shuriken.draw(this.ctx);
+            }
+            
+            // 분신술 렌더링
+            if (this.shadowClones) {
+                for (const clone of this.shadowClones) {
+                    if (!clone.exploded) {
+                        this.ctx.save();
+                        this.ctx.globalAlpha = clone.alpha;
+                        this.ctx.fillStyle = '#888888';
+                        this.ctx.beginPath();
+                        this.ctx.arc(clone.x, clone.y, clone.radius, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.restore();
+                    }
+                }
+            }
+            
+            // 천둥의 심판 렌더링
+            if (this.thunderEffects) {
+                for (const effect of this.thunderEffects) {
+                    const progress = 1 - (effect.duration / effect.maxDuration);
+                    effect.radius = effect.maxRadius * progress;
+                    effect.alpha = 1.0 - progress;
+
+                    this.ctx.save();
+                    this.ctx.globalAlpha = effect.alpha;
+                    const gradient = this.ctx.createRadialGradient(
+                        effect.x, effect.y, 0,
+                        effect.x, effect.y, effect.radius
+                    );
+                    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+                    gradient.addColorStop(0.5, 'rgba(200, 200, 255, 0.8)');
+                    gradient.addColorStop(1, 'rgba(100, 100, 255, 0)');
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.beginPath();
+                    this.ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.restore();
+                }
+            }
+            
+            // 바다의 포효 렌더링
+            if (this.waves) {
+                for (const wave of this.waves) {
+                    this.ctx.save();
+                    const gradient = this.ctx.createLinearGradient(
+                        wave.x - wave.width / 2, wave.y,
+                        wave.x + wave.width / 2, wave.y
+                    );
+                    gradient.addColorStop(0, 'rgba(100, 150, 255, 0.3)');
+                    gradient.addColorStop(0.5, 'rgba(50, 100, 255, 0.6)');
+                    gradient.addColorStop(1, 'rgba(100, 150, 255, 0.3)');
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(wave.x, wave.y, wave.width / 2, 20, 0, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.restore();
+                }
+            }
+            
+            // 기폭찰 렌더링
+            if (this.explosiveTags) {
+                for (const tag of this.explosiveTags) {
+                    this.ctx.save();
+                    this.ctx.fillStyle = '#ff6600';
+                    this.ctx.beginPath();
+                    this.ctx.arc(tag.x, tag.y, 8, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.strokeStyle = '#ff0000';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.stroke();
+                    this.ctx.restore();
+                }
+            }
+            
+            // 기폭찰 폭발 효과 렌더링
+            if (this.explosiveExplosions) {
+                for (const explosion of this.explosiveExplosions) {
+                    const gradient = this.ctx.createRadialGradient(
+                        explosion.x, explosion.y, 0,
+                        explosion.x, explosion.y, explosion.radius
+                    );
+                    gradient.addColorStop(0, `rgba(255, 200, 0, ${explosion.alpha})`);
+                    gradient.addColorStop(0.5, `rgba(255, 100, 0, ${explosion.alpha * 0.6})`);
+                    gradient.addColorStop(1, `rgba(255, 0, 0, 0)`);
+                    
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.beginPath();
+                    this.ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+            }
+            
+            // 호카게의 가호 렌더링
+            if (this.player.stats.hokageActive) {
+                const radius = this.player.stats.hokageRadius || 80;
+                this.ctx.save();
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                this.ctx.lineWidth = 2;
+                this.ctx.setLineDash([5, 5]);
+                this.ctx.beginPath();
+                this.ctx.arc(this.player.x, this.player.y, radius, 0, Math.PI * 2);
+                this.ctx.stroke();
+                this.ctx.restore();
             }
             
             // 불 오라 폭발 효과 렌더링

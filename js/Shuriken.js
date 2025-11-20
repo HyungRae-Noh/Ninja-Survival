@@ -9,7 +9,7 @@ class Shuriken {
         this.radius = 60; // 플레이어로부터의 거리
         this.rotationSpeed = 0.05; // 회전 속도 (라디안/프레임)
         this.damage = 5; // 기본 데미지
-        this.size = 8; // 수리검 크기
+        this.size = 15; // 수리검 크기
         this.penetration = false; // 관통 여부
         this.penetratedEnemies = []; // 이미 관통한 적들
         this.lastHitTime = 0; // 마지막 타격 시간 (같은 적을 연속으로 타격하지 않도록)

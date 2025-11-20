@@ -51,7 +51,7 @@ class Player {
             orbCollectionRange: 1.0,    // 오브 흡수 범위 배수
             // 방어/체력 관련
             maxHealth: 1.0,             // 최대 체력 배수
-            damageReduction: 0.0,        // 받는 피해 감소 % (0.0 ~ 1.0)
+            damageReduction: 0.0,        // 받는 피해 감소 % (0.0 ~ 0.)
             // 불 오라 관련
             fireAuraActive: false,      // 불 오라 활성화 여부
             fireAuraDamage: 3,          // 불 오라 기본 데미지
@@ -73,7 +73,52 @@ class Player {
             poisonMaxStacks: 1,           // 최대 중독 중첩 수
             poisonDamage: 2,              // 중독 기본 데미지 (1초당, 중첩당)
             poisonDuration: 3000,         // 중독 기본 지속 시간 (3초)
-            poisonSpread: false            // 중독 확산 활성화 여부
+            poisonSpread: false,           // 중독 확산 활성화 여부
+            // 분신술 관련
+            shadowCloneActive: false,      // 분신술 활성화 여부
+            shadowCloneCount: 1,          // 분신 개수
+            shadowCloneCooldown: 5000,    // 분신 리젠 쿨타임 (밀리초)
+            shadowClonePullRange: 0,      // 끌어당기는 범위 (0이면 비활성화)
+            // 천둥의 심판 관련
+            thunderActive: false,          // 천둥의 심판 활성화 여부
+            thunderCooldown: 3000,        // 번개 쿨타임 (밀리초)
+            thunderDamage: 10,            // 번개 데미지
+            thunderRadius: 60,            // 번개 범위
+            thunderChainChance: 0.25,     // 연쇄 전도 확률
+            thunderCritChance: 0.05,      // 번개 치명타 확률
+            thunderSlowEnabled: false,    // 적 이동속도 감소 활성화
+            thunderExpDropEnabled: false, // 경험치 오브 드랍 활성화
+            // 바다의 포효 관련
+            waveActive: false,            // 바다의 포효 활성화 여부
+            waveCooldown: 2000,          // 파도 쿨타임 (밀리초)
+            waveDamage: 15,              // 파도 데미지
+            waveRange: 500,              // 파도 사거리
+            waveWidth: 80,               // 파도 폭
+            waveFreezeChance: 0,         // 얼어붙음 확률
+            waveSlowAmount: 0,           // 이동속도 감소량
+            waveSpeedBoostEnabled: false, // 이동속도 증가 활성화
+            waveSpeedBoostAmount: 0,      // 이동속도 증가량
+            waveSpeedBoostDuration: 0,    // 이동속도 증가 지속 시간
+            // 수확기 관련
+            greedActive: false,           // 수확기 활성화 여부
+            curse: 0,                     // 저주 비율
+            goldGain: 1.0,                // 골드 획득량 배수
+            greedExpBonusEnabled: false,  // 경험치 보너스 활성화
+            greedExpBonus: 1.0,          // 경험치 보너스 배수
+            greedGoldFeverEnabled: false, // 골드 피버 활성화
+            greedGoldFeverMultiplier: 1.0, // 골드 피버 배수
+            // 기폭찰 관련
+            explosiveTagActive: false,    // 기폭찰 활성화 여부
+            explosiveTagCooldown: 10000,  // 기폭찰 발사 주기 (밀리초)
+            explosiveTagDamage: 20,       // 기폭찰 데미지
+            explosiveTagRadius: 40,       // 기폭찰 폭발 범위
+            explosiveTagBackward: false,  // 후방 발사 활성화
+            // 호카게의 가호 관련
+            hokageActive: false,          // 호카게의 가호 활성화 여부
+            hokageRadius: 80,             // 물리 충돌 영역 반경
+            hokageKnockback: 5,           // 넉백 거리
+            hokageSlow: 0.3,              // 이동속도 감소량 (30%)
+            hokageShieldStackChance: 0    // 보호막 스택 획득 확률
         };
         
         // 파워업 레벨 추적
@@ -86,6 +131,10 @@ class Player {
             left: false,
             right: false
         };
+        
+        // 조류 가속 효과
+        this.waveSpeedBoostActive = false;
+        this.waveSpeedBoostAmount = 0;
     }
 
     update(deltaTime = 0) {
@@ -120,9 +169,14 @@ class Player {
             this.lastDirection = this.direction;
         }
 
-        // 위치 업데이트 (파워업 적용)
-        this.x += dx * this.speed * this.stats.moveSpeed;
-        this.y += dy * this.speed * this.stats.moveSpeed;
+        // 위치 업데이트 (파워업 적용 + 조류 가속)
+        let moveSpeedMultiplier = this.stats.moveSpeed;
+        // 조류 가속 효과 (Game.js에서 관리)
+        if (this.waveSpeedBoostActive) {
+            moveSpeedMultiplier += this.waveSpeedBoostAmount || 0.05;
+        }
+        this.x += dx * this.speed * moveSpeedMultiplier;
+        this.y += dy * this.speed * moveSpeedMultiplier;
 
         // 월드 경계 제한
         this.x = Math.max(this.radius, Math.min(CONFIG.WORLD_WIDTH - this.radius, this.x));
